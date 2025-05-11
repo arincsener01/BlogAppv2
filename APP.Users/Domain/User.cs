@@ -29,7 +29,7 @@ namespace APP.Users.Domain
 
         public int RoleId { get; set; }
 
-        public Role role { get; set; }
+        public Role Role { get; set; }
 
         public List<UserSkill> UserSkills { get; set; } = new List<UserSkill>();
 
