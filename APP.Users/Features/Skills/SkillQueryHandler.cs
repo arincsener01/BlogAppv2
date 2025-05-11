@@ -1,0 +1,18 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using CORE.APP.Features;
+
+namespace APP.Users.Features.Skills
+{
+    public class SkillQueryResponse : QueryResponse{
+            public string Name { get; set; }
+    }
+
+    //TODO:
+    //public class SkillQueryHandler
+    //{
+    //}
+}
