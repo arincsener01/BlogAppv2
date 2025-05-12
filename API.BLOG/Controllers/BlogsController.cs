@@ -4,12 +4,14 @@ using Microsoft.EntityFrameworkCore;
 using MediatR;
 using CORE.APP.Features;
 using APP.BLOG.Features.Blogs;
+using Microsoft.AspNetCore.Authorization;
 
 //Generated from Custom Template.
 namespace API.BLOG.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class BlogsController : ControllerBase
     {
         private readonly ILogger<BlogsController> _logger;

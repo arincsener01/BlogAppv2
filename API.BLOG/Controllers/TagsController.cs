@@ -4,12 +4,14 @@ using Microsoft.EntityFrameworkCore;
 using MediatR;
 using CORE.APP.Features;
 using APP.BLOG.Features.Tags;
+using Microsoft.AspNetCore.Authorization;
 
 //Generated from Custom Template.
 namespace API.BLOG.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin")]
     public class TagsController : ControllerBase
     {
         private readonly ILogger<TagsController> _logger;
@@ -23,6 +25,7 @@ namespace API.BLOG.Controllers
 
         // GET: api/Tags
         [HttpGet]
+        [Authorize(Roles = "Admin,User")]
         public async Task<IActionResult> Get()
         {
             try
