@@ -18,14 +18,6 @@ namespace APP.Users.Features.Users
 {
     public class UserQueryRequest : Request, IRequest<IQueryable<UserQueryResponse>>
     {
-        [JsonIgnore]
-        public override int Id { get => base.Id; set => base.Id = value; }
-
-        [StringLength(30, MinimumLength = 3)]
-        public string UserName { get; set; }
-
-        [StringLength(10, MinimumLength = 3)]
-        public string Password { get; set; }
     }
 
     public class UserQueryResponse : QueryResponse
@@ -77,10 +69,6 @@ namespace APP.Users.Features.Users
         {
             var entityQuery = _db.Users.Include(u => u.Role).Include(u => u.UserSkills).ThenInclude(us => us.Skill).OrderByDescending(u => u.IsActive).ThenBy(u => u.UserName).AsQueryable();
 
-            //filterin:
-            if (!string.IsNullOrWhiteSpace(request.UserName) && !string.IsNullOrWhiteSpace(request.Password))
-                entityQuery = entityQuery.Where(u => u.UserName == request.UserName && u.Password == request.Password && u.IsActive);
-
             //Projection
             var query = entityQuery.Select(u => new UserQueryResponse()
             {
@@ -88,6 +76,7 @@ namespace APP.Users.Features.Users
                 FirstName = u.FirstName,
                 LastName = u.LastName,
                 FullName = u.FirstName + " " + u.LastName,
+                UserName = u.UserName,
                 Id = u.Id,
                 IsActive = u.IsActive,
                 Password = u.Password,
@@ -97,7 +86,7 @@ namespace APP.Users.Features.Users
                 },
                 RoleId = u.Role.Id,
                 SkillIds = u.SkillIds,
-                SkillNames = string.Join(", ", u.Skills.Select(us => us.Skill.Name)),
+                SkillNames = string.Join(", ", u.UserSkills.Select(us => us.Skill.Name)),
 
             });
 
