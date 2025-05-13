@@ -4,7 +4,6 @@ using APP.BLOG.Features;
 using APP.BLOG;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using APP.Users;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
