@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\API.BLOG\API.BLOG.csproj" />
+    <ProjectReference Include="..\API.Gateway\API.Gateway.csproj" />
     <ProjectReference Include="..\API.Users\API.Users.csproj" />
   </ItemGroup>
 

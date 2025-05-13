@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using MediatR;
 using CORE.APP.Features;
 using APP.BLOG.Features.Skills;
+using Microsoft.AspNetCore.Authorization;
 
 //Generated from Custom Template.
 namespace API.BLOG.Controllers
@@ -61,6 +62,7 @@ namespace API.BLOG.Controllers
 
 		// POST: api/Skills
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Post(SkillCreateRequest request)
         {
             try
@@ -86,6 +88,7 @@ namespace API.BLOG.Controllers
 
         // PUT: api/Skills
         [HttpPut]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Put(SkillUpdateRequest request)
         {
             try
@@ -111,6 +114,7 @@ namespace API.BLOG.Controllers
 
         // DELETE: api/Skills/5
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id)
         {
             try
