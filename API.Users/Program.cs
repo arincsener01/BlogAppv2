@@ -21,6 +21,23 @@ var section = builder.Configuration.GetSection(nameof(AppSettings));
 section.Bind(new AppSettings());
 
 // ======================================================
+// CORS
+// ======================================================
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(
+        policy =>
+        {
+            policy
+                .SetIsOriginAllowed(_ => true) // Allow any origin
+                .AllowAnyMethod()              // Allow any HTTP method
+                .AllowAnyHeader()              // Allow any header
+                .AllowCredentials();           // Allow credentials
+        });
+});
+
+// ======================================================
 // AUTHENTICATION
 // ======================================================
 
@@ -92,12 +109,19 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.SuppressAsyncSuffixInActionNames = false;
+});
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+// Add explicit health checks endpoint
+app.MapHealthChecks("/health");
 
 app.MapDefaultEndpoints();
 
@@ -110,6 +134,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Enable CORS
+app.UseCors();
+
+app.UseRouting();
+
 // ======================================================
 // AUTHENTICATION
 // ======================================================
@@ -119,6 +148,9 @@ app.UseAuthentication();
 
 app.UseAuthorization();
 
-app.MapControllers();
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllers();
+});
 
 app.Run();

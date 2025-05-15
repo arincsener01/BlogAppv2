@@ -1,48 +1,60 @@
-import axios from 'axios';
+import { usersApi, blogsApi } from '../services/api';
 
 /**
- * Checks if the backend API is running and accessible
+ * Checks if a specific API endpoint is running and accessible
+ * @param {Object} api - The axios instance to use
+ * @param {string} name - The name of the API for logging
  * @returns {Promise<{ isHealthy: boolean, message: string }>}
  */
-export const checkApiHealth = async () => {
+const checkSingleApiHealth = async (api, name) => {
   try {
-    // Try to reach the API with a simple request
-    const response = await axios.get('https://localhost:7042/api/Blogs', {
+    // Use appropriate endpoints for each API (without /api prefix since it's in baseURL)
+    const endpoint = name === 'Users' ? '/Users' : '/Tags';
+    
+    const response = await api.get(endpoint, {
       timeout: 5000,
       headers: { 'Cache-Control': 'no-cache' },
-      params: { _t: new Date().getTime() } // Cache busting
     });
     
-    // If we got a response (even 404 is okay, it means the API is running)
+    // If we got any response, the API is running
     if (response.status >= 200 && response.status < 500) {
       return {
         isHealthy: true,
-        message: `API is healthy (status ${response.status})`
+        message: `${name} API is healthy`
       };
     } else {
       return {
         isHealthy: false,
-        message: `API returned error status: ${response.status}`
+        message: `${name} API returned error status: ${response.status}`
       };
     }
   } catch (error) {
-    console.error('API Health Check Error:', error);
+    console.error(`${name} API Health Check Error:`, error);
+    
+    // If we get a 401 (Unauthorized), the API is actually running
+    // This is expected for protected endpoints when not logged in
+    if (error.response && error.response.status === 401) {
+      return {
+        isHealthy: true,
+        message: `${name} API is healthy (requires authentication)`
+      };
+    }
     
     // Determine the specific error
     let errorMessage;
     
     if (error.code === 'ERR_NETWORK') {
-      errorMessage = 'Network error: API server might be down or unreachable';
+      errorMessage = `Network error: ${name} API server might be down or unreachable`;
     } else if (error.code === 'ECONNABORTED') {
-      errorMessage = 'Timeout: API server is running but responding slowly';
+      errorMessage = `Timeout: ${name} API server is running but responding slowly`;
     } else if (error.code === 'ERR_INSUFFICIENT_RESOURCES') {
-      errorMessage = 'Server has insufficient resources. Try restarting the API or wait a moment.';
+      errorMessage = `${name} API server has insufficient resources. Try restarting the API or wait a moment.`;
     } else if (error.response) {
-      errorMessage = `API responded with ${error.response.status}: ${error.response.statusText}`;
+      errorMessage = `${name} API responded with ${error.response.status}: ${error.response.statusText}`;
     } else if (error.request) {
-      errorMessage = 'No response received from API server';
+      errorMessage = `No response received from ${name} API server`;
     } else {
-      errorMessage = error.message || 'Unknown API health check error';
+      errorMessage = error.message || `Unknown ${name} API health check error`;
     }
     
     return {
@@ -53,7 +65,23 @@ export const checkApiHealth = async () => {
 };
 
 /**
- * Waits for the API to be healthy with multiple retry attempts
+ * Checks if both backend APIs are running and accessible
+ * @returns {Promise<{ isHealthy: boolean, message: string, usersApiHealthy: boolean, blogsApiHealthy: boolean }>}
+ */
+export const checkApiHealth = async () => {
+  const usersHealth = await checkSingleApiHealth(usersApi, 'Users');
+  const blogsHealth = await checkSingleApiHealth(blogsApi, 'Blogs');
+
+  return {
+    isHealthy: usersHealth.isHealthy && blogsHealth.isHealthy,
+    message: `Users API: ${usersHealth.message}, Blogs API: ${blogsHealth.message}`,
+    usersApiHealthy: usersHealth.isHealthy,
+    blogsApiHealthy: blogsHealth.isHealthy
+  };
+};
+
+/**
+ * Waits for both APIs to be healthy with multiple retry attempts
  * @param {number} maxAttempts - Maximum number of retry attempts
  * @param {number} delayMs - Delay between attempts in milliseconds
  * @returns {Promise<{ success: boolean, message: string }>}
@@ -62,22 +90,26 @@ export const waitForHealthyApi = async (maxAttempts = 5, delayMs = 2000) => {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     console.log(`API health check attempt ${attempt}/${maxAttempts}...`);
     
-    const { isHealthy, message } = await checkApiHealth();
+    const { isHealthy, message, usersApiHealthy, blogsApiHealthy } = await checkApiHealth();
     
     if (isHealthy) {
       return { 
         success: true, 
-        message: `API is healthy after ${attempt} attempt(s)` 
+        message: `Both APIs are healthy after ${attempt} attempt(s)` 
       };
     }
     
     if (attempt < maxAttempts) {
-      console.log(`API not healthy yet: ${message}. Waiting ${delayMs}ms before retry...`);
+      const details = [];
+      if (!usersApiHealthy) details.push('Users API is not healthy');
+      if (!blogsApiHealthy) details.push('Blogs API is not healthy');
+      
+      console.log(`APIs not healthy yet: ${details.join(', ')}. Waiting ${delayMs}ms before retry...`);
       await new Promise(resolve => setTimeout(resolve, delayMs));
     } else {
       return { 
         success: false, 
-        message: `API failed health check after ${maxAttempts} attempts: ${message}` 
+        message: `API health check failed after ${maxAttempts} attempts: ${message}` 
       };
     }
   }
@@ -90,23 +122,27 @@ export const waitForHealthyApi = async (maxAttempts = 5, delayMs = 2000) => {
 export const getApiTroubleshootingSteps = () => {
   return {
     ERR_INSUFFICIENT_RESOURCES: [
-      "The server doesn't have enough resources (memory or CPU) to handle the request.",
+      "One or both API servers don't have enough resources (memory or CPU) to handle requests.",
       "1. Close other applications on your development machine to free up resources.",
-      "2. Restart the .NET API server using 'dotnet run' command.",
-      "3. If running in Docker, try increasing the container's resource limits."
+      "2. Restart both .NET API servers using 'dotnet run' command.",
+      "3. If running in Docker, try increasing the containers' resource limits."
     ],
     ERR_NETWORK: [
-      "The application can't reach the API server due to a network issue.",
-      "1. Verify the API is running with 'dotnet run' in the API.BLOG directory.",
-      "2. Check if the port 7042 is available and not blocked by a firewall.",
-      "3. Try accessing https://localhost:7042/swagger in your browser."
+      "The application can't reach one or both API servers due to network issues.",
+      "1. Verify both APIs are running:",
+      "   - Users API: dotnet run in API.Users directory (port 7052)",
+      "   - Blogs API: dotnet run in API.BLOG directory (port 7042)",
+      "2. Check if the ports are available and not blocked by firewalls.",
+      "3. Try accessing the Swagger UIs:",
+      "   - Users API: https://localhost:7052/swagger",
+      "   - Blogs API: https://localhost:7042/swagger"
     ],
     GENERAL: [
       "General API troubleshooting steps:",
-      "1. Restart the API server using 'dotnet run' in the API.BLOG directory.",
-      "2. Check the API console output for any error messages.",
-      "3. Verify your database connection string and database availability.",
-      "4. If using HTTPS, ensure certificates are properly configured."
+      "1. Restart both API servers using 'dotnet run' in their respective directories.",
+      "2. Check both API console outputs for any error messages.",
+      "3. Verify database connections and availability.",
+      "4. Ensure HTTPS certificates are properly configured for both APIs."
     ]
   };
 };

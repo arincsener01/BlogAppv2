@@ -6,6 +6,7 @@ using APP.Users.Features.Users;
 using System;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Cors;
 
 //Generated from Custom Template.
 namespace API.Users.Controllers
@@ -66,25 +67,31 @@ namespace API.Users.Controllers
         // [HttpPost("[action]")] //api/Users/Token
 
         // Way 2:
-        [HttpPost, Route("/api/[action]")] //api/Token
+        [HttpPost("Token")]
         [AllowAnonymous]
         public async Task<IActionResult> Token(TokenRequest request)
         {
+            _logger.LogInformation("Token endpoint hit with userName: {UserName}", request?.UserName);
             try
             {
                 if (ModelState.IsValid)
                 {
+                    _logger.LogInformation("Model state is valid, processing request");
                     var response = await _mediator.Send(request);
                     if (response.Success)
+                    {
+                        _logger.LogInformation("Token generated successfully for user: {UserName}", request.UserName);
                         return Ok(response);
+                    }
 
+                    _logger.LogWarning("Token generation failed for user: {UserName}", request.UserName);
                     ModelState.AddModelError("UsersToken", response.Message);
                 }
                 return BadRequest(new CommandResponse(false, string.Join("|", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage))));
             }
             catch (Exception exception)
             {
-                _logger.LogError("UsersToken Exception: " + exception.Message);
+                _logger.LogError("UsersToken Exception for user {UserName}: {Message}", request?.UserName, exception.Message);
                 return StatusCode(StatusCodes.Status500InternalServerError, new CommandResponse(false, "An exception occured during UsersToken."));
             }
         }
@@ -114,10 +121,12 @@ namespace API.Users.Controllers
         /// - 200 OK with a detailed <see cref="CommandResponse"/> if user is authenticated.  
         /// - 400 Bad Request if user is not authenticated or token is invalid.
         /// </returns>
-        [HttpGet("[action]")] // GET: /api/users/authorize
+        [HttpGet("[action]")] // GET: /api/Users/Authorize
         [AllowAnonymous]
         public IActionResult Authorize()
         {
+            _logger.LogInformation("Authorize endpoint hit. IsAuthenticated: {IsAuthenticated}", User.Identity.IsAuthenticated);
+            
             // Check if the request's identity (User) is authenticated
             var isAuthenticated = User.Identity.IsAuthenticated;
 
@@ -125,6 +134,7 @@ namespace API.Users.Controllers
             {
                 // Extract username from identity
                 var userName = User.Identity.Name;
+                _logger.LogInformation("User authenticated. Username: {UserName}", userName);
 
                 // Check if user has the "Admin" role
                 var isAdmin = User.IsInRole("Admin");
@@ -132,6 +142,12 @@ namespace API.Users.Controllers
                 // Read custom claims from JWT token
                 var role = User.Claims.SingleOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
                 var id = User.Claims.SingleOrDefault(c => c.Type == "Id")?.Value;
+
+                // Log all claims for debugging
+                foreach (var claim in User.Claims)
+                {
+                    _logger.LogInformation("Claim: {Type} = {Value}", claim.Type, claim.Value);
+                }
 
                 // Construct a friendly message to return to the caller
                 var message = $"User authenticated. " +
@@ -143,6 +159,7 @@ namespace API.Users.Controllers
                 return Ok(new CommandResponse(true, message));
             }
 
+            _logger.LogWarning("User not authenticated. Authorization header might be missing or invalid.");
             // Token was not valid or missing — user is unauthenticated
             return BadRequest(new CommandResponse(false, "User not authenticated!"));
         }
